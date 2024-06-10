@@ -93,5 +93,6 @@ func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
 		"status":  200,
 		"message": "Message sent successfully",
 	}
+	log.Println("----------------------")
 	json.NewEncoder(w).Encode(responseJSON)
 }
