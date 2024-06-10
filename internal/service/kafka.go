@@ -8,7 +8,8 @@ import (
 
 // sendToKafka publishes the message to the Kafka topic
 func sendToKafka(from string, to string, message string) error {
-	producer, err := sarama.NewSyncProducer([]string{"localhost:9092"}, nil)
+	producer, err := sarama.NewSyncProducer([]string{"3.90.212.230:9092"}, nil)
+	// producer, err := sarama.NewSyncProducer([]string{"localhost:9092"}, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create Kafka producer: %v", err)
 	}
