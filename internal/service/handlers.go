@@ -31,12 +31,12 @@ func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokenString := authHeader[len("Bearer "):]
+	authTokenString := authHeader[len("Bearer "):]
 	region := "us-east-1"
 	userPoolId := "us-east-1_icXeg2eiv"
 	ctx := context.Background()
 
-	_, err := cognitoJwtAuthenticator.ValidateToken(ctx, region, userPoolId, tokenString)
+	_, err := cognitoJwtAuthenticator.ValidateToken(ctx, region, userPoolId, authTokenString)
 	if err != nil {
 		writeJSONResponse(w, http.StatusUnauthorized, fmt.Sprintf("Token validation error: %s", err))
 		return
