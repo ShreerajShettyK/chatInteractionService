@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/ShreerajShettyK/cognitoJwtAuthenticator"
 )
@@ -32,8 +33,8 @@ func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	authTokenString := authHeader[len("Bearer "):]
-	region := "us-east-1"
-	userPoolId := "us-east-1_icXeg2eiv"
+	region := os.Getenv("REGION")
+	userPoolId := os.Getenv("COGNITO_USER_POOL_ID")
 	ctx := context.Background()
 
 	_, err := cognitoJwtAuthenticator.ValidateToken(ctx, region, userPoolId, authTokenString)
@@ -43,6 +44,7 @@ func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println("Authorization token is valid")
+
 	profileToken := r.Header.Get("Profile-Token")
 	if profileToken == "" {
 		writeJSONResponse(w, http.StatusUnauthorized, "Missing Profile token")
@@ -89,5 +91,5 @@ func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
 
 	writeJSONResponse(w, http.StatusOK, "Message sent successfully")
 
-	log.Println("----------------------")
+	log.Println("--------------------------------------------------")
 }
