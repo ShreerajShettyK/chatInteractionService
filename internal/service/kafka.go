@@ -85,18 +85,10 @@ func createTopic(brokers []string, topic string) error {
 
 // sendToKafka publishes the message to the Kafka topic
 func sendToKafka(from string, to string, message string) error {
-	brokers := []string{"3.85.126.195:9092"}
-
 	// Fetch the topic from environment variables
 	topic := os.Getenv("KAFKA_TOPIC")
 	if topic == "" {
 		return fmt.Errorf("KAFKA_TOPIC environment variable is not set")
-	}
-
-	// Create the topic if it doesn't exist
-	err := createTopic(brokers, topic)
-	if err != nil {
-		return fmt.Errorf("failed to ensure Kafka topic exists: %v", err)
 	}
 
 	// Fetch the instance ID from environment variables
@@ -112,6 +104,15 @@ func sendToKafka(from string, to string, message string) error {
 	}
 
 	log.Printf("Public IP address of EC2 instance %s: %s\n", instanceID, publicIP)
+
+	// Set the Kafka broker address dynamically
+	brokers := []string{fmt.Sprintf("%s:9092", publicIP)}
+
+	// Create the topic if it doesn't exist, pass brokers parameter
+	err = createTopic(brokers, topic)
+	if err != nil {
+		return fmt.Errorf("failed to ensure Kafka topic exists: %v", err)
+	}
 
 	// Set the necessary configuration for the SyncProducer
 	config := sarama.NewConfig()

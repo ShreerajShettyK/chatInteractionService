@@ -54,13 +54,13 @@ func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
 		writeJSONResponse(w, http.StatusUnauthorized, "Invalid profile token")
 		return
 	}
+	log.Println("Profile token is valid")
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		writeJSONResponse(w, http.StatusBadRequest, "Failed to read request body")
 		return
 	}
-	log.Println("Profile token is valid")
 
 	var requestData map[string]string
 	err = json.Unmarshal(body, &requestData)
@@ -86,13 +86,10 @@ func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
 		writeJSONResponse(w, http.StatusInternalServerError, fmt.Sprintf("Failed to send message: %v", err))
 		return
 	}
+
 	log.Println("Sent message to kafka")
 
-	w.Header().Set("Status", "200")
-	responseJSON := map[string]interface{}{
-		"status":  200,
-		"message": "Message sent successfully",
-	}
+	writeJSONResponse(w, http.StatusOK, "Message sent successfully")
+
 	log.Println("----------------------")
-	json.NewEncoder(w).Encode(responseJSON)
 }
