@@ -87,8 +87,6 @@ func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("Sent message to kafka")
-
 	writeJSONResponse(w, http.StatusOK, "Message sent successfully")
 
 	log.Println("----------------------")

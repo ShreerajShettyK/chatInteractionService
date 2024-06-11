@@ -3,56 +3,19 @@
 package service
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"os"
 
 	"github.com/IBM/sarama"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/joho/godotenv"
 )
 
 func init() {
-	// Load .env file
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatalf("Error loading .env file")
 	}
-}
-
-// getPublicIP retrieves the public IP address of the specified EC2 instance
-func getPublicIP(instanceID string) (string, error) {
-	// Load the AWS SDK configuration
-	cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion("us-east-1"))
-	if err != nil {
-		return "", fmt.Errorf("failed to load AWS SDK config: %v", err)
-	}
-
-	// Create an EC2 client
-	svc := ec2.NewFromConfig(cfg)
-
-	// Describe the instance to get its public IP address
-	input := &ec2.DescribeInstancesInput{
-		InstanceIds: []string{instanceID},
-	}
-
-	result, err := svc.DescribeInstances(context.Background(), input)
-	if err != nil {
-		return "", fmt.Errorf("failed to describe EC2 instance: %v", err)
-	}
-
-	if len(result.Reservations) == 0 || len(result.Reservations[0].Instances) == 0 {
-		return "", fmt.Errorf("no instances found for instance ID %s", instanceID)
-	}
-
-	instance := result.Reservations[0].Instances[0]
-	if instance.PublicIpAddress == nil {
-		return "", fmt.Errorf("instance %s does not have a public IP address", instanceID)
-	}
-
-	return *instance.PublicIpAddress, nil
 }
 
 // createTopic ensures that the given Kafka topic is created if it does not exist
@@ -87,8 +50,9 @@ func createTopic(brokers []string, topic string) error {
 func sendToKafka(from string, to string, message string) error {
 	// Fetch the topic from environment variables
 	topic := os.Getenv("KAFKA_TOPIC")
-	if topic == "" {
-		return fmt.Errorf("KAFKA_TOPIC environment variable is not set")
+	port := os.Getenv("KAFKA_PORT")
+	if topic == "" && port == "" {
+		return fmt.Errorf("KAFKA_TOPIC and PORT environment variable is not set")
 	}
 
 	// Fetch the instance ID from environment variables
@@ -106,7 +70,7 @@ func sendToKafka(from string, to string, message string) error {
 	log.Printf("Public IP address of EC2 instance %s: %s\n", instanceID, publicIP)
 
 	// Set the Kafka broker address dynamically
-	brokers := []string{fmt.Sprintf("%s:9092", publicIP)}
+	brokers := []string{fmt.Sprintf("%s:%s", publicIP, port)}
 
 	// Create the topic if it doesn't exist, pass brokers parameter
 	err = createTopic(brokers, topic)
