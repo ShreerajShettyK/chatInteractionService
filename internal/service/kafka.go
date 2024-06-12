@@ -3,18 +3,9 @@ package service
 import (
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/IBM/sarama"
-	"github.com/joho/godotenv"
 )
-
-func init() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalf("Error loading .env file")
-	}
-}
 
 // createTopic ensures that the given Kafka topic is created if it does not exist
 func createTopic(brokers []string, topic string) error {
@@ -47,20 +38,12 @@ func createTopic(brokers []string, topic string) error {
 
 // sendToKafka publishes the message to the Kafka topic
 func sendToKafka(from string, to string, message string) error {
-	// Fetch the topic from environment variables
-	topic := os.Getenv("KAFKA_TOPIC")
-	port := os.Getenv("KAFKA_PORT")
-	if topic == "" && port == "" {
-		return fmt.Errorf("KAFKA_TOPIC and PORT environment variable is not set")
+	// Fetch the Kafka topic, Kafka port, and EC2 instance ID from AWS Secrets Manager
+	topic, instanceID, port, _, _, err := fetchSecrets()
+	if err != nil {
+		return fmt.Errorf("failed to fetch environment variables from Secrets Manager: %v", err)
 	}
 
-	// Fetch the instance ID from environment variables
-	instanceID := os.Getenv("EC2_INSTANCE_ID")
-	if instanceID == "" {
-		return fmt.Errorf("EC2_INSTANCE_ID environment variable is not set")
-	}
-
-	// Fetch the public IP address of the EC2 instance
 	publicIP, err := getPublicIP(instanceID)
 	if err != nil {
 		return fmt.Errorf("failed to get public IP address: %v", err)
@@ -71,7 +54,7 @@ func sendToKafka(from string, to string, message string) error {
 	// Set the Kafka broker address dynamically
 	brokers := []string{fmt.Sprintf("%s:%s", publicIP, port)}
 
-	// Create the topic if it doesn't exist, pass brokers parameter
+	// Create the Kafka topic if it doesn't exist
 	err = createTopic(brokers, topic)
 	if err != nil {
 		return fmt.Errorf("failed to ensure Kafka topic exists: %v", err)
@@ -81,17 +64,18 @@ func sendToKafka(from string, to string, message string) error {
 	config := sarama.NewConfig()
 	config.Producer.Return.Successes = true
 
+	// Create a new SyncProducer
 	producer, err := sarama.NewSyncProducer(brokers, config)
 	if err != nil {
 		return fmt.Errorf("failed to create Kafka producer: %v", err)
 	}
 	defer producer.Close()
 
+	// Send the message to the Kafka topic
 	_, _, err = producer.SendMessage(&sarama.ProducerMessage{
 		Topic: topic,
 		Value: sarama.StringEncoder(fmt.Sprintf("From:%s, To:%s, Message:%s", from, to, message)),
 	})
-
 	if err != nil {
 		return fmt.Errorf("failed to send message to Kafka: %v", err)
 	}

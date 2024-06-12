@@ -6,7 +6,7 @@ require (
 	github.com/IBM/sarama v1.43.2
 	github.com/aws/aws-sdk-go-v2 v1.27.2
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.163.1
-	github.com/joho/godotenv v1.5.1
+	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.29.3
 )
 
 require (

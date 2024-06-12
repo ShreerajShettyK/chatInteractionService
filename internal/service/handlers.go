@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/ShreerajShettyK/cognitoJwtAuthenticator"
 )
@@ -25,15 +24,21 @@ func writeJSONResponse(w http.ResponseWriter, statusCode int, message string) {
 
 func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
 	var requestData map[string]string
+	_, _, _, region, userPoolID, err := fetchSecrets()
+	if err != nil {
+		return
+	}
 	authHeader := r.Header.Get("Authorization")
 	if authHeader != "" {
 		authTokenString := authHeader[len("Bearer "):]
-		region := os.Getenv("REGION")
-		userPoolId := os.Getenv("COGNITO_USER_POOL_ID")
+		// region := os.Getenv("REGION")
+		// userPoolId := os.Getenv("USER_POOL_ID")
 		ctx := context.Background()
+		log.Println(userPoolID)
 
-		_, err := cognitoJwtAuthenticator.ValidateToken(ctx, region, userPoolId, authTokenString)
+		_, err := cognitoJwtAuthenticator.ValidateToken(ctx, region, userPoolID, authTokenString)
 		if err == nil {
+			// if true {
 			log.Println("Authorization token is valid")
 
 			profileToken := r.Header.Get("Profile-Token")
