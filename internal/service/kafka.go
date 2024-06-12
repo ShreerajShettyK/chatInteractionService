@@ -8,8 +8,7 @@ import (
 )
 
 // createTopic ensures that the given Kafka topic is created if it does not exist
-func createTopic(brokers []string, topic string) error {
-	config := sarama.NewConfig()
+func createTopic(brokers []string, topic string, config *sarama.Config) error {
 	admin, err := sarama.NewClusterAdmin(brokers, config)
 	if err != nil {
 		return fmt.Errorf("failed to create Kafka admin: %v", err)
@@ -54,14 +53,16 @@ func sendToKafka(from string, to string, message string) error {
 	// Set the Kafka broker address dynamically
 	brokers := []string{fmt.Sprintf("%s:%s", publicIP, port)}
 
+	config := sarama.NewConfig()
+
 	// Create the Kafka topic if it doesn't exist
-	err = createTopic(brokers, topic)
+	err = createTopic(brokers, topic, config)
 	if err != nil {
 		return fmt.Errorf("failed to ensure Kafka topic exists: %v", err)
 	}
 
 	// Set the necessary configuration for the SyncProducer
-	config := sarama.NewConfig()
+	// config := sarama.NewConfig()
 	config.Producer.Return.Successes = true
 
 	// Create a new SyncProducer

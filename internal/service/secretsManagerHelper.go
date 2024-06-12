@@ -24,6 +24,7 @@ func init() {
 
 // Fetches the value of a secret from AWS Secrets Manager
 func getSecret(secretName string) (string, error) {
+	var topicSecret string
 	client := secretsmanager.NewFromConfig(cfg)
 
 	input := &secretsmanager.GetSecretValueInput{
@@ -32,14 +33,15 @@ func getSecret(secretName string) (string, error) {
 
 	result, err := client.GetSecretValue(context.Background(), input)
 	if err != nil {
-		return "", fmt.Errorf("failed to get secret value: %v", err)
+		return topicSecret, fmt.Errorf("failed to get secret value: %v", err)
 	}
 
 	if result.SecretString == nil {
-		return "", fmt.Errorf("secret string is nil")
+		return topicSecret, fmt.Errorf("secret string is nil")
 	}
+	topicSecret = aws.ToString(result.SecretString)
 
-	return *result.SecretString, nil
+	return topicSecret, nil
 }
 
 // Fetches Kafka topic, EC2 instance ID, and Kafka port from Secrets Manager

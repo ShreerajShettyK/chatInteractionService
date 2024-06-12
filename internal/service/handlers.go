@@ -31,8 +31,6 @@ func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader != "" {
 		authTokenString := authHeader[len("Bearer "):]
-		// region := os.Getenv("REGION")
-		// userPoolId := os.Getenv("USER_POOL_ID")
 		ctx := context.Background()
 		log.Println(userPoolID)
 
