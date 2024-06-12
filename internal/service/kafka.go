@@ -1,5 +1,3 @@
-//////kafka topic,public ip from env
-
 package service
 
 import (
@@ -26,10 +24,11 @@ func createTopic(brokers []string, topic string) error {
 		return fmt.Errorf("failed to create Kafka admin: %v", err)
 	}
 	defer admin.Close()
+	//ensures the admin client is closed when the function exits
 
 	topicDetail := &sarama.TopicDetail{
-		NumPartitions:     1,
-		ReplicationFactor: 1,
+		NumPartitions:     1, //parallelism
+		ReplicationFactor: 1, //Replication ensures that data is copied to multiple brokers, providing redundancy and fault tolerance
 	}
 
 	err = admin.CreateTopic(topic, topicDetail, false)
@@ -88,12 +87,11 @@ func sendToKafka(from string, to string, message string) error {
 	}
 	defer producer.Close()
 
-	msg := &sarama.ProducerMessage{
+	_, _, err = producer.SendMessage(&sarama.ProducerMessage{
 		Topic: topic,
 		Value: sarama.StringEncoder(fmt.Sprintf("From:%s, To:%s, Message:%s", from, to, message)),
-	}
+	})
 
-	_, _, err = producer.SendMessage(msg)
 	if err != nil {
 		return fmt.Errorf("failed to send message to Kafka: %v", err)
 	}

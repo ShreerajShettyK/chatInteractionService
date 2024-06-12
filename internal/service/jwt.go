@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// JWTClaims represents the structure of the JWT payload
+// JWTClaims represents the structure of the profile's JWT payload
 type JWTClaims struct {
 	FirstName string `json:"first_name"`
 	UID       string `json:"uid"`
@@ -15,7 +15,8 @@ type JWTClaims struct {
 
 // decodeJWT decodes a JWT token and returns the payload as a JWTClaims struct
 func decodeJWT(token string) (*JWTClaims, error) {
-	parts := strings.Split(token, ".")
+	var claims JWTClaims
+	parts := strings.Split(token, ".") //header,payload,signature
 	if len(parts) < 2 {
 		return nil, fmt.Errorf("invalid token")
 	}
@@ -25,7 +26,6 @@ func decodeJWT(token string) (*JWTClaims, error) {
 		return nil, fmt.Errorf("unable to decode token payload: %v", err)
 	}
 
-	var claims JWTClaims
 	err = json.Unmarshal(payload, &claims)
 	if err != nil {
 		return nil, fmt.Errorf("unable to unmarshal token payload: %v", err)

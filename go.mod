@@ -4,12 +4,12 @@ go 1.22.3
 
 require (
 	github.com/IBM/sarama v1.43.2
+	github.com/aws/aws-sdk-go-v2 v1.27.2
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.163.1
 	github.com/joho/godotenv v1.5.1
 )
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.27.2 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.18 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.5 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.9 // indirect

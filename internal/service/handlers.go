@@ -71,6 +71,7 @@ func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//toExists and msgExists are boolean
 	to, toExists := requestData["to"]
 	message, msgExists := requestData["msg"]
 
