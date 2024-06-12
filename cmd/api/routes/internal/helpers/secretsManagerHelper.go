@@ -1,4 +1,4 @@
-package service
+package helpers
 
 import (
 	"context"
@@ -45,7 +45,7 @@ func getSecret(secretName string) (string, error) {
 }
 
 // Fetches Kafka topic, EC2 instance ID, and Kafka port from Secrets Manager
-func fetchSecrets() (string, string, string, string, string, error) {
+func FetchSecrets() (string, string, string, string, string, error) {
 	var secretData map[string]string
 	var topic, instanceID, port, region, userPoolID string
 	topicSecret, err := getSecret("myApp/mongo-db-credentials")

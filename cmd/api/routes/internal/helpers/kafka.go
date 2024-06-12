@@ -1,4 +1,4 @@
-package service
+package helpers
 
 import (
 	"fmt"
@@ -36,14 +36,14 @@ func createTopic(brokers []string, topic string, config *sarama.Config) error {
 }
 
 // sendToKafka publishes the message to the Kafka topic
-func sendToKafka(from string, to string, message string) error {
+func SendToKafka(from string, to string, message string) error {
 	// Fetch the Kafka topic, Kafka port, and EC2 instance ID from AWS Secrets Manager
-	topic, instanceID, port, region, _, err := fetchSecrets()
+	topic, instanceID, port, region, _, err := FetchSecrets()
 	if err != nil {
 		return fmt.Errorf("failed to fetch environment variables from Secrets Manager: %v", err)
 	}
 
-	publicIP, err := getPublicIP(instanceID, region)
+	publicIP, err := GetPublicIP(instanceID, region)
 	if err != nil {
 		return fmt.Errorf("failed to get public IP address: %v", err)
 	}

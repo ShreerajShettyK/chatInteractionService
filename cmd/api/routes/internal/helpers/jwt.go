@@ -1,4 +1,4 @@
-package service
+package helpers
 
 import (
 	"encoding/base64"
@@ -14,7 +14,7 @@ type JWTClaims struct {
 }
 
 // decodeJWT decodes a JWT token and returns the payload as a JWTClaims struct
-func decodeJWT(token string) (*JWTClaims, error) {
+func DecodeJWT(token string) (*JWTClaims, error) {
 	var claims JWTClaims
 	parts := strings.Split(token, ".") //header,payload,signature
 	if len(parts) < 2 {

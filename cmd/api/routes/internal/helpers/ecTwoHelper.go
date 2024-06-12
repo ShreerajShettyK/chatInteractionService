@@ -1,4 +1,4 @@
-package service
+package helpers
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 )
 
 // getPublicIP retrieves the public IP address of the specified EC2 instance
-func getPublicIP(instanceID string, region string) (string, error) {
+func GetPublicIP(instanceID string, region string) (string, error) {
 	var publicIpAddress string
 
 	// Load the AWS SDK configuration
