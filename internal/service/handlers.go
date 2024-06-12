@@ -26,8 +26,10 @@ func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
 	var requestData map[string]string
 	_, _, _, region, userPoolID, err := fetchSecrets()
 	if err != nil {
+		log.Println("Couldn't retrieve the secrets")
 		return
 	}
+	log.Println("Secret retrieved from AWS Secrets Manager")
 	authHeader := r.Header.Get("Authorization")
 	if authHeader != "" {
 		authTokenString := authHeader[len("Bearer "):]

@@ -11,11 +11,11 @@ import (
 )
 
 // getPublicIP retrieves the public IP address of the specified EC2 instance
-func getPublicIP(instanceID string) (string, error) {
+func getPublicIP(instanceID string, region string) (string, error) {
 	var publicIpAddress string
 
 	// Load the AWS SDK configuration
-	cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion("us-east-1"))
+	cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(region))
 	if err != nil {
 		log.Printf("failed to load AWS SDK config: %v", err)
 		return publicIpAddress, err

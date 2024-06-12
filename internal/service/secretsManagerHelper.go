@@ -47,11 +47,11 @@ func getSecret(secretName string) (string, error) {
 // Fetches Kafka topic, EC2 instance ID, and Kafka port from Secrets Manager
 func fetchSecrets() (string, string, string, string, string, error) {
 	var secretData map[string]string
+	var topic, instanceID, port, region, userPoolID string
 	topicSecret, err := getSecret("myApp/mongo-db-credentials")
 	if err != nil {
 		return "", "", "", "", "", err
 	}
-	log.Println("Secret retrieved from AWS Secrets Manager")
 
 	// log.Printf("Secret retrieved from AWS Secrets Manager: %s\n", topicSecret)
 
@@ -59,33 +59,33 @@ func fetchSecrets() (string, string, string, string, string, error) {
 	err = json.Unmarshal([]byte(topicSecret), &secretData)
 	if err != nil {
 		log.Printf("Error parsing secret string: %v\n", err)
-		return "", "", "", "", "", err
+		return topic, instanceID, port, region, userPoolID, err
 	}
 
 	// Extracting values from the parsed secret data
 	topic, ok := secretData["KAFKA_TOPIC"]
 	if !ok {
-		return "", "", "", "", "", fmt.Errorf("KAFKA_TOPIC not found in secret data")
+		return topic, instanceID, port, region, userPoolID, fmt.Errorf("KAFKA_TOPIC not found in secret data")
 	}
 
-	instanceID, ok := secretData["EC2_INSTANCE_ID"]
+	instanceID, ok = secretData["EC2_INSTANCE_ID"]
 	if !ok {
-		return "", "", "", "", "", fmt.Errorf("EC2_INSTANCE_ID not found in secret data")
+		return topic, instanceID, port, region, userPoolID, fmt.Errorf("EC2_INSTANCE_ID not found in secret data")
 	}
 
-	port, ok := secretData["KAFKA_PORT"]
+	port, ok = secretData["KAFKA_PORT"]
 	if !ok {
-		return "", "", "", "", "", fmt.Errorf("KAFKA_PORT not found in secret data")
+		return topic, instanceID, port, region, userPoolID, fmt.Errorf("KAFKA_PORT not found in secret data")
 	}
 
-	region, ok := secretData["REGION"]
+	region, ok = secretData["REGION"]
 	if !ok {
-		return "", "", "", "", "", fmt.Errorf("REGION not found in secret data")
+		return topic, instanceID, port, region, userPoolID, fmt.Errorf("REGION not found in secret data")
 	}
 
-	userPoolID, ok := secretData["USER_POOL_ID"]
+	userPoolID, ok = secretData["USER_POOL_ID"]
 	if !ok {
-		return "", "", "", "", "", fmt.Errorf("USER_POOL_ID not found in secret data")
+		return topic, instanceID, port, region, userPoolID, fmt.Errorf("USER_POOL_ID not found in secret data")
 	}
 
 	// log.Printf("Parsed values: Topic=%s, InstanceID=%s, Port=%s, Region=%s, UserPoolID=%s\n", topic, instanceID, port, region, userPoolID)
