@@ -11,10 +11,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 )
 
+type SecretsManagerClient interface {
+	GetSecretValue(ctx context.Context, params *secretsmanager.GetSecretValueInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.GetSecretValueOutput, error)
+}
+
 var cfg aws.Config
 
 func init() {
-	// Load AWS SDK configuration
 	var err error
 	cfg, err = config.LoadDefaultConfig(context.Background())
 	if err != nil {
@@ -22,73 +25,59 @@ func init() {
 	}
 }
 
-// Fetches the value of a secret from AWS Secrets Manager
-func getSecret(secretName string) (string, error) {
-	var topicSecret string
-	client := secretsmanager.NewFromConfig(cfg)
-
+func getSecret(client SecretsManagerClient, secretName string) (string, error) {
 	input := &secretsmanager.GetSecretValueInput{
 		SecretId: &secretName,
 	}
 
 	result, err := client.GetSecretValue(context.Background(), input)
 	if err != nil {
-		return topicSecret, fmt.Errorf("failed to get secret value: %v", err)
+		return "", fmt.Errorf("failed to get secret value: %v", err)
 	}
 
 	if result.SecretString == nil {
-		return topicSecret, fmt.Errorf("secret string is nil")
+		return "", fmt.Errorf("secret string is nil")
 	}
-	topicSecret = aws.ToString(result.SecretString)
 
-	return topicSecret, nil
+	return aws.ToString(result.SecretString), nil
 }
 
-// Fetches Kafka topic, EC2 instance ID, and Kafka port from Secrets Manager
-func FetchSecrets() (string, string, string, string, string, error) {
-	var secretData map[string]string
-	var topic, instanceID, port, region, userPoolID string
-	topicSecret, err := getSecret("myApp/mongo-db-credentials")
+func FetchSecrets(client SecretsManagerClient) (string, string, string, string, string, error) {
+	topicSecret, err := getSecret(client, "myApp/mongo-db-credentials")
 	if err != nil {
 		return "", "", "", "", "", err
 	}
 
-	// log.Printf("Secret retrieved from AWS Secrets Manager: %s\n", topicSecret)
-
-	// Parsing the JSON format of the secret string
+	var secretData map[string]string
 	err = json.Unmarshal([]byte(topicSecret), &secretData)
 	if err != nil {
-		log.Printf("Error parsing secret string: %v\n", err)
-		return topic, instanceID, port, region, userPoolID, err
+		return "", "", "", "", "", fmt.Errorf("error parsing secret string: %v", err)
 	}
 
-	// Extracting values from the parsed secret data
 	topic, ok := secretData["KAFKA_TOPIC"]
 	if !ok {
-		return topic, instanceID, port, region, userPoolID, fmt.Errorf("KAFKA_TOPIC not found in secret data")
+		return "", "", "", "", "", fmt.Errorf("KAFKA_TOPIC not found in secret data")
 	}
 
-	instanceID, ok = secretData["EC2_INSTANCE_ID"]
+	instanceID, ok := secretData["EC2_INSTANCE_ID"]
 	if !ok {
-		return topic, instanceID, port, region, userPoolID, fmt.Errorf("EC2_INSTANCE_ID not found in secret data")
+		return topic, "", "", "", "", fmt.Errorf("EC2_INSTANCE_ID not found in secret data")
 	}
 
-	port, ok = secretData["KAFKA_PORT"]
+	port, ok := secretData["KAFKA_PORT"]
 	if !ok {
-		return topic, instanceID, port, region, userPoolID, fmt.Errorf("KAFKA_PORT not found in secret data")
+		return topic, instanceID, "", "", "", fmt.Errorf("KAFKA_PORT not found in secret data")
 	}
 
-	region, ok = secretData["REGION"]
+	region, ok := secretData["REGION"]
 	if !ok {
-		return topic, instanceID, port, region, userPoolID, fmt.Errorf("REGION not found in secret data")
+		return topic, instanceID, port, "", "", fmt.Errorf("REGION not found in secret data")
 	}
 
-	userPoolID, ok = secretData["USER_POOL_ID"]
+	userPoolID, ok := secretData["USER_POOL_ID"]
 	if !ok {
-		return topic, instanceID, port, region, userPoolID, fmt.Errorf("USER_POOL_ID not found in secret data")
+		return topic, instanceID, port, region, "", fmt.Errorf("USER_POOL_ID not found in secret data")
 	}
-
-	// log.Printf("Parsed values: Topic=%s, InstanceID=%s, Port=%s, Region=%s, UserPoolID=%s\n", topic, instanceID, port, region, userPoolID)
 
 	return topic, instanceID, port, region, userPoolID, nil
 }

@@ -6,12 +6,24 @@ import (
 	"net/http"
 	"strings"
 
-	"chatInteractionService/cmd/api/routes/internal/helpers"
-
 	"github.com/ShreerajShettyK/cognitoJwtAuthenticator"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 )
 
-func AuthMiddleware(next http.Handler) http.Handler {
+var cfg aws.Config
+
+func init() {
+	var err error
+	cfg, err = config.LoadDefaultConfig(context.Background())
+	if err != nil {
+		log.Fatalf("Error loading AWS SDK config: %v", err)
+	}
+}
+
+func AuthMiddleware(next http.Handler, fetchSecrets func(client *secretsmanager.Client) (string, string, string, string, string, error)) http.Handler {
+	secretsClient := secretsmanager.NewFromConfig(cfg)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
@@ -20,14 +32,14 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		authTokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		_, _, _, region, userPoolID, err := helpers.FetchSecrets()
+
+		_, _, _, region, userPoolID, err := fetchSecrets(secretsClient)
 		if err != nil {
 			log.Println("Couldn't retrieve the secrets")
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
 		ctx := context.Background()
-		// log.Println(userPoolID)
 
 		_, err = cognitoJwtAuthenticator.ValidateToken(ctx, region, userPoolID, authTokenString)
 		if err != nil {

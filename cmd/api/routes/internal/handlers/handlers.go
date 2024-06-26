@@ -1,13 +1,34 @@
 package handlers
 
 import (
+	"chatInteractionService/cmd/api/routes/internal/helpers"
+	"context"
 	"encoding/json"
 	"io"
 	"log"
 	"net/http"
 
-	"chatInteractionService/cmd/api/routes/internal/helpers"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 )
+
+var (
+	DecodeJWTFunc = helpers.DecodeJWT
+	FetchSecrets  = helpers.FetchSecrets
+	SendToKafka   = helpers.SendToKafka
+)
+
+var cfg aws.Config
+
+func init() {
+	var err error
+	cfg, err = config.LoadDefaultConfig(context.Background())
+	if err != nil {
+		log.Fatalf("Error loading AWS SDK config: %v", err)
+	}
+}
 
 // writeJSONResponse writes a JSON response with a given status code and message
 func writeJSONResponse(w http.ResponseWriter, statusCode int, message string) {
@@ -21,18 +42,25 @@ func writeJSONResponse(w http.ResponseWriter, statusCode int, message string) {
 	w.Write(responseJSON)
 }
 
+// SendMessageHandler handles the sending of a message to Kafka
 func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
 	var requestData map[string]string
-	_, _, _, _, _, err := helpers.FetchSecrets()
+	secretsClient := secretsmanager.NewFromConfig(cfg)
+	region := "us-east-1" // Set your AWS region here
+
+	ec2Client := ec2.NewFromConfig(cfg)
+
+	_, _, _, _, _, err := FetchSecrets(secretsClient)
 	if err != nil {
 		log.Println("Couldn't retrieve the secrets")
 		writeJSONResponse(w, http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
 	log.Println("Secret retrieved from AWS Secrets Manager")
+
 	profileToken := r.Header.Get("Profile-Token")
 	if profileToken != "" {
-		claims, err := helpers.DecodeJWT(profileToken)
+		claims, err := DecodeJWTFunc(profileToken)
 		if err == nil {
 			log.Println("Profile token is valid")
 
@@ -45,13 +73,13 @@ func SendMessageHandler(w http.ResponseWriter, r *http.Request) {
 
 					if toExists && to != "" {
 						if msgExists && message != "" {
-							err = helpers.SendToKafka(claims.FirstName, to, message)
+							err = SendToKafka(ec2Client, secretsClient, claims.FirstName, to, message, region)
 							if err == nil {
 								writeJSONResponse(w, http.StatusOK, "Message sent successfully")
 								log.Println("--------------------------------------------------")
 								return
 							} else {
-								writeJSONResponse(w, http.StatusInternalServerError, err.Error())
+								writeJSONResponse(w, http.StatusInternalServerError, "Failed to send message")
 								log.Println("Failed to send message")
 								return
 							}
