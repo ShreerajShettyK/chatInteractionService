@@ -1,4 +1,3 @@
-// 89%
 package handlers
 
 import (

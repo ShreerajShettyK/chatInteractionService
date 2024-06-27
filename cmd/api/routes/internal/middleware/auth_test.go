@@ -1,7 +1,112 @@
+// package middleware
+
+// import (
+// 	"context"
+// 	"net/http"
+// 	"net/http/httptest"
+// 	"testing"
+
+// 	"github.com/ShreerajShettyK/cognitoJwtAuthenticator"
+// 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+// 	"github.com/stretchr/testify/assert"
+// 	"github.com/stretchr/testify/mock"
+// )
+
+// type MockCognitoJwtAuthenticator struct {
+// 	mock.Mock
+// }
+
+// func (m *MockCognitoJwtAuthenticator) ValidateToken(ctx context.Context, region, userPoolID, token string) (*cognitoJwtAuthenticator.AWSCognitoClaims, error) {
+// 	args := m.Called(ctx, region, userPoolID, token)
+// 	return args.Get(0).(*cognitoJwtAuthenticator.AWSCognitoClaims), args.Error(1)
+// }
+
+// type MockHelpers struct {
+// 	mock.Mock
+// }
+
+// func (m *MockHelpers) FetchSecrets(client *secretsmanager.Client) (string, string, string, string, string, error) {
+// 	args := m.Called(client)
+// 	return args.String(0), args.String(1), args.String(2), args.String(3), args.String(4), args.Error(5)
+// }
+
+// func TestAuthMiddleware(t *testing.T) {
+// 	// mockCognito := new(MockCognitoJwtAuthenticator)
+// 	mockHelpers := new(MockHelpers)
+
+// 	mockFetchSecrets := func(client *secretsmanager.Client) (string, string, string, string, string, error) {
+// 		return mockHelpers.FetchSecrets(client)
+// 	}
+
+// 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 		w.WriteHeader(http.StatusOK)
+// 		w.Write([]byte("OK"))
+// 	})
+
+// 	authMiddleware := AuthMiddleware(handler, mockFetchSecrets)
+
+// 	t.Run("MissingAuthorizationHeader", func(t *testing.T) {
+// 		req, _ := http.NewRequest("GET", "/", nil)
+// 		rr := httptest.NewRecorder()
+
+// 		authMiddleware.ServeHTTP(rr, req)
+
+// 		assert.Equal(t, http.StatusUnauthorized, rr.Code)
+// 		assert.Equal(t, "Missing Authorization token\n", rr.Body.String())
+// 	})
+
+// 	// t.Run("InvalidToken", func(t *testing.T) {
+// 	// 	req, _ := http.NewRequest("GET", "/", nil)
+// 	// 	req.Header.Set("Authorization", "Bearer invalidtoken")
+// 	// 	rr := httptest.NewRecorder()
+
+// 	// 	mockHelpers.On("FetchSecrets", mock.Anything).Return("", "", "", "us-west-2", "userpoolID", nil).Once()
+// 	// 	mockCognito.On("ValidateToken", mock.Anything, "us-west-2", "userpoolID", "invalidtoken").Return(nil, assert.AnError).Once()
+
+// 	// 	authMiddleware.ServeHTTP(rr, req)
+
+// 	// 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+// 	// 	assert.Equal(t, "Token validation error\n", rr.Body.String())
+// 	// 	mockHelpers.AssertExpectations(t)
+// 	// 	mockCognito.AssertExpectations(t)
+// 	// })
+
+// 	// t.Run("ValidToken", func(t *testing.T) {
+// 	// 	req, _ := http.NewRequest("GET", "/", nil)
+// 	// 	req.Header.Set("Authorization", "Bearer validtoken")
+// 	// 	rr := httptest.NewRecorder()
+
+// 	// 	mockHelpers.On("FetchSecrets", mock.Anything).Return("", "", "", "us-west-2", "userpoolID", nil).Once()
+// 	// 	mockCognito.On("ValidateToken", mock.Anything, "us-west-2", "userpoolID", "validtoken").Return(&cognitoJwtAuthenticator.AWSCognitoClaims{}, nil).Once()
+
+// 	// 	authMiddleware.ServeHTTP(rr, req)
+
+// 	// 	assert.Equal(t, http.StatusOK, rr.Code)
+// 	// 	assert.Equal(t, "Token validation error\n", rr.Body.String())
+// 	// 	mockHelpers.AssertExpectations(t)
+// 	// 	mockCognito.AssertExpectations(t)
+// 	// })
+
+// 	t.Run("FetchSecretsError", func(t *testing.T) {
+// 		req, _ := http.NewRequest("GET", "/", nil)
+// 		req.Header.Set("Authorization", "Bearer sometoken")
+// 		rr := httptest.NewRecorder()
+
+// 		mockHelpers.On("FetchSecrets", mock.Anything).Return("", "", "", "", "", assert.AnError).Once()
+
+// 		authMiddleware.ServeHTTP(rr, req)
+
+// 		assert.Equal(t, http.StatusInternalServerError, rr.Code)
+// 		assert.Equal(t, "Internal Server Error\n", rr.Body.String())
+// 		mockHelpers.AssertExpectations(t)
+// 	})
+// }
+
 package middleware
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -18,6 +123,9 @@ type MockCognitoJwtAuthenticator struct {
 
 func (m *MockCognitoJwtAuthenticator) ValidateToken(ctx context.Context, region, userPoolID, token string) (*cognitoJwtAuthenticator.AWSCognitoClaims, error) {
 	args := m.Called(ctx, region, userPoolID, token)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).(*cognitoJwtAuthenticator.AWSCognitoClaims), args.Error(1)
 }
 
@@ -31,11 +139,15 @@ func (m *MockHelpers) FetchSecrets(client *secretsmanager.Client) (string, strin
 }
 
 func TestAuthMiddleware(t *testing.T) {
-	// mockCognito := new(MockCognitoJwtAuthenticator)
+	mockCognito := new(MockCognitoJwtAuthenticator)
 	mockHelpers := new(MockHelpers)
 
 	mockFetchSecrets := func(client *secretsmanager.Client) (string, string, string, string, string, error) {
 		return mockHelpers.FetchSecrets(client)
+	}
+
+	validateToken := func(ctx context.Context, region, userPoolID, token string) (*cognitoJwtAuthenticator.AWSCognitoClaims, error) {
+		return mockCognito.ValidateToken(ctx, region, userPoolID, token)
 	}
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -43,7 +155,7 @@ func TestAuthMiddleware(t *testing.T) {
 		w.Write([]byte("OK"))
 	})
 
-	authMiddleware := AuthMiddleware(handler, mockFetchSecrets)
+	authMiddleware := AuthMiddleware(handler, mockFetchSecrets, validateToken)
 
 	t.Run("MissingAuthorizationHeader", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/", nil)
@@ -55,44 +167,45 @@ func TestAuthMiddleware(t *testing.T) {
 		assert.Equal(t, "Missing Authorization token\n", rr.Body.String())
 	})
 
-	// t.Run("InvalidToken", func(t *testing.T) {
-	// 	req, _ := http.NewRequest("GET", "/", nil)
-	// 	req.Header.Set("Authorization", "Bearer invalidtoken")
-	// 	rr := httptest.NewRecorder()
+	t.Run("InvalidToken", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/", nil)
+		req.Header.Set("Authorization", "Bearer invalidtoken")
+		rr := httptest.NewRecorder()
 
-	// 	mockHelpers.On("FetchSecrets", mock.Anything).Return("", "", "", "us-west-2", "userpoolID", nil).Once()
-	// 	mockCognito.On("ValidateToken", mock.Anything, "us-west-2", "userpoolID", "invalidtoken").Return(nil, assert.AnError).Once()
+		mockHelpers.On("FetchSecrets", mock.Anything).Return("", "", "", "us-west-2", "userpoolID", nil).Once()
+		mockCognito.On("ValidateToken", mock.Anything, "us-west-2", "userpoolID", "invalidtoken").Return(nil, errors.New("invalid token")).Once()
 
-	// 	authMiddleware.ServeHTTP(rr, req)
+		authMiddleware.ServeHTTP(rr, req)
 
-	// 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
-	// 	assert.Equal(t, "Token validation error\n", rr.Body.String())
-	// 	mockHelpers.AssertExpectations(t)
-	// 	mockCognito.AssertExpectations(t)
-	// })
+		assert.Equal(t, http.StatusUnauthorized, rr.Code)
+		assert.Equal(t, "Token validation error\n", rr.Body.String())
+		mockHelpers.AssertExpectations(t)
+		mockCognito.AssertExpectations(t)
+	})
 
-	// t.Run("ValidToken", func(t *testing.T) {
-	// 	req, _ := http.NewRequest("GET", "/", nil)
-	// 	req.Header.Set("Authorization", "Bearer validtoken")
-	// 	rr := httptest.NewRecorder()
+	// Uncomment and complete other test cases as needed
+	t.Run("ValidToken", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/", nil)
+		req.Header.Set("Authorization", "Bearer validtoken")
+		rr := httptest.NewRecorder()
 
-	// 	mockHelpers.On("FetchSecrets", mock.Anything).Return("", "", "", "us-west-2", "userpoolID", nil).Once()
-	// 	mockCognito.On("ValidateToken", mock.Anything, "us-west-2", "userpoolID", "validtoken").Return(&cognitoJwtAuthenticator.AWSCognitoClaims{}, nil).Once()
+		mockHelpers.On("FetchSecrets", mock.Anything).Return("", "", "", "us-west-2", "userpoolID", nil).Once()
+		mockCognito.On("ValidateToken", mock.Anything, "us-west-2", "userpoolID", "validtoken").Return(&cognitoJwtAuthenticator.AWSCognitoClaims{}, nil).Once()
 
-	// 	authMiddleware.ServeHTTP(rr, req)
+		authMiddleware.ServeHTTP(rr, req)
 
-	// 	assert.Equal(t, http.StatusOK, rr.Code)
-	// 	assert.Equal(t, "Token validation error\n", rr.Body.String())
-	// 	mockHelpers.AssertExpectations(t)
-	// 	mockCognito.AssertExpectations(t)
-	// })
+		assert.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t, "OK", rr.Body.String())
+		mockHelpers.AssertExpectations(t)
+		mockCognito.AssertExpectations(t)
+	})
 
 	t.Run("FetchSecretsError", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/", nil)
 		req.Header.Set("Authorization", "Bearer sometoken")
 		rr := httptest.NewRecorder()
 
-		mockHelpers.On("FetchSecrets", mock.Anything).Return("", "", "", "", "", assert.AnError).Once()
+		mockHelpers.On("FetchSecrets", mock.Anything).Return("", "", "", "", "", errors.New("fetch secrets error")).Once()
 
 		authMiddleware.ServeHTTP(rr, req)
 
