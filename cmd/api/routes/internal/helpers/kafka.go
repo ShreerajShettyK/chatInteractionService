@@ -24,29 +24,20 @@ func SendMessage(producer sarama.SyncProducer, topic string, from string, to str
 	})
 }
 
-// createTopic ensures that the given Kafka topic is created if it does not exist
-func CreateTopic(brokers []string, topic string, config *sarama.Config) error {
-	admin, err := newClusterAdmin(brokers, config)
+func NewClusterAdmin(brokers []string, config *sarama.Config) (sarama.ClusterAdmin, error) {
+	admin, err := sarama.NewClusterAdmin(brokers, config)
 	if err != nil {
-		return fmt.Errorf("failed to create Kafka admin: %v", err)
+		return admin, fmt.Errorf("failed to create Kafka admin: %v", err)
 	}
-	defer admin.Close()
+	return admin, err
+}
 
-	err = admin.CreateTopic(topic, &sarama.TopicDetail{
+// createTopic ensures that the given Kafka topic is created if it does not exist
+func CreateTopic(topic string, admin sarama.ClusterAdmin) error {
+	return admin.CreateTopic(topic, &sarama.TopicDetail{
 		NumPartitions:     1, // Parallelism
 		ReplicationFactor: 1, // Redundancy and fault tolerance
 	}, false)
-
-	if err != nil {
-		if topicErr, ok := err.(*sarama.TopicError); ok && topicErr.Err == sarama.ErrTopicAlreadyExists {
-			log.Printf("Topic %s already exists\n", topic)
-			return nil
-		}
-		return fmt.Errorf("failed to create Kafka topic: %v", err)
-	}
-
-	log.Printf("Topic %s created successfully\n", topic)
-	return nil
 }
 
 // sendToKafka publishes the message to the Kafka topic
@@ -69,17 +60,30 @@ func SendToKafka(ec2Client EC2ClientGetter, secretsClient SecretsManagerClient, 
 
 	config := getSaramaConfig()
 
-	// Create the Kafka topic if it doesn't exist
-	err = createTopic(brokers, topic, config)
+	admin, err := newClusterAdmin(brokers, config)
 	if err != nil {
-		return fmt.Errorf("failed to ensure Kafka topic exists: %v", err)
+		return fmt.Errorf("failed to create sarama cluster admin: %v", err)
 	}
+
+	// Create the Kafka topic if it doesn't exist
+	err = createTopic(topic, admin)
+
+	if err != nil {
+		if topicErr, ok := err.(*sarama.TopicError); ok && topicErr.Err == sarama.ErrTopicAlreadyExists {
+			log.Printf("Topic %s already exists\n", topic)
+		} else {
+			return fmt.Errorf("failed to ensure Kafka topic exists: %v", err)
+		}
+	}
+	log.Printf("Topic %s created successfully\n", topic)
+
+	//add code here
 
 	// Set the necessary configuration for the SyncProducer
 	config.Producer.Return.Successes = true
 
 	// Create a new SyncProducer
-	producer, err := sarama.NewSyncProducer(brokers, config)
+	producer, err := newSyncProducer(brokers, config)
 	if err != nil {
 		return fmt.Errorf("failed to create Kafka producer: %v", err)
 	}
@@ -94,14 +98,3 @@ func SendToKafka(ec2Client EC2ClientGetter, secretsClient SecretsManagerClient, 
 	log.Printf("Message sent to topic %s\n", topic)
 	return nil
 }
-
-// // NewSecretsManagerClient creates a new Secrets Manager client
-// func NewSecretsManagerClient(region string) (SecretsManagerClient, error) {
-// 	cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(region))
-// 	if err != nil {
-// 		log.Printf("failed to load AWS SDK config: %v", err)
-// 		return nil, err
-// 	}
-
-// 	return secretsmanager.NewFromConfig(cfg), nil
-// }
