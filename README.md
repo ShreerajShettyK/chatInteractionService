@@ -25,15 +25,11 @@ docker run -d --name kafka -p 9092:9092 --link zookeeper:zookeeper \
 -e KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT \
 -e KAFKA_BROKER_ID=1 wurstmeister/kafka
 
-
-
 (publicIp address: 3.90.212.230:9092 )
-
-
-then test the microservice using this below endpoint
-http://localhost:8000/send-message
-
 
 2 containers should be running
 
 --->in go code public address is fetched using running instance id
+
+then test the microservice using this below endpoint
+http://localhost:8000/send-message
